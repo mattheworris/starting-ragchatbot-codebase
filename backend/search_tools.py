@@ -218,6 +218,7 @@ class ToolManager:
     
     def __init__(self):
         self.tools = {}
+        self.accumulated_sources = []  # Accumulate sources across multiple rounds
     
     def register_tool(self, tool: Tool):
         """Register any tool that implements the Tool interface"""
@@ -237,18 +238,22 @@ class ToolManager:
         if tool_name not in self.tools:
             return f"Tool '{tool_name}' not found"
         
-        return self.tools[tool_name].execute(**kwargs)
+        result = self.tools[tool_name].execute(**kwargs)
+        
+        # Accumulate sources from this tool execution
+        tool = self.tools[tool_name]
+        if hasattr(tool, 'last_sources') and tool.last_sources:
+            self.accumulated_sources.extend(tool.last_sources)
+        
+        return result
     
     def get_last_sources(self) -> list:
-        """Get sources from the last search operation"""
-        # Check all tools for last_sources attribute
-        for tool in self.tools.values():
-            if hasattr(tool, 'last_sources') and tool.last_sources:
-                return tool.last_sources
-        return []
+        """Get accumulated sources from all tool executions in current session"""
+        return self.accumulated_sources.copy()
 
     def reset_sources(self):
-        """Reset sources from all tools that track sources"""
+        """Reset accumulated sources and sources from all tools"""
+        self.accumulated_sources = []
         for tool in self.tools.values():
             if hasattr(tool, 'last_sources'):
                 tool.last_sources = []
